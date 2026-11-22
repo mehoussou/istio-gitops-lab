@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: ghcr.io/YOUR_USER/istio-gitops-lab/customer-app@sha256:REPLACE_ME
+          image: ghcr.io/mehoussou/istio-gitops-lab/customer-app@sha256:1e3408b6c8f89dd1d28a8895bf41c09a7468bac66f783a8608c2fd75f148b33e
           ports:
             - name: http
               containerPort: 80
