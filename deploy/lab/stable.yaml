@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-app-v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: customer-app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: customer-app
+        version: v1
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/YOUR_USER/istio-gitops-lab/customer-app@sha256:REPLACE_ME
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
