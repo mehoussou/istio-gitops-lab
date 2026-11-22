@@ -18,13 +18,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build and smoke-test
+        shell: bash
         run: |
           docker build -t customer-app:test app
+          response=$(mktemp)
+          trap 'rm -f "$response"; docker rm -f customer-app-test >/dev/null 2>&1 || true' EXIT
           docker run -d --name customer-app-test \
             -p 127.0.0.1:8080:80 customer-app:test
-          trap 'docker rm -f customer-app-test >/dev/null' EXIT
-          curl -fsS --retry 10 --retry-connrefused --max-time 5 \
-            http://127.0.0.1:8080/ | grep -Fx -f app/index.html
+
+          for attempt in $(seq 1 15); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8080/ -o "$response"; then
+              break
+            fi
+            if [ "$attempt" -eq 15 ]; then
+              echo "NGINX did not respond successfully after 15 attempts."
+              docker logs customer-app-test
+              exit 1
+            fi
+            sleep 1
+          done
+
+          diff -u app/index.html "$response"
 
   publish:
     if: github.event_name == 'push'
@@ -36,19 +50,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build, test, and publish the same image
+        shell: bash
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -o pipefail
           image="ghcr.io/${GITHUB_REPOSITORY,,}/customer-app"
           tag="$image:$GITHUB_SHA"
 
           docker build -t "$tag" app
+          response=$(mktemp)
+          trap 'rm -f "$response"; docker rm -f customer-app-test >/dev/null 2>&1 || true' EXIT
           docker run -d --name customer-app-test \
             -p 127.0.0.1:8080:80 "$tag"
-          trap 'docker rm -f customer-app-test >/dev/null' EXIT
-          curl -fsS --retry 10 --retry-connrefused --max-time 5 \
-            http://127.0.0.1:8080/ | grep -Fx -f app/index.html
+
+          for attempt in $(seq 1 15); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8080/ -o "$response"; then
+              break
+            fi
+            if [ "$attempt" -eq 15 ]; then
+              echo "NGINX did not respond successfully after 15 attempts."
+              docker logs customer-app-test
+              exit 1
+            fi
+            sleep 1
+          done
+
+          diff -u app/index.html "$response"
 
           printf '%s' "$GHCR_TOKEN" |
             docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
