@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: customer-route
+spec:
+  hosts:
+    - gitops.customer.local
+  gateways:
+    - customer-gateway
+  http:
+    - route:
+        - destination:
+            host: customer-app.customer-gitops.svc.cluster.local
+            subset: v1
+            port:
+              number: 80
+          weight: 100
